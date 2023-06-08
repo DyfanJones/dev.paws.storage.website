@@ -45,7 +45,7 @@ files <- files[files != "paws-package.Rd"]
 
 html_files <- fs::path(temp_html_dir, gsub("\\.Rd", "\\.html", files))
 md_files <- fs::path(getwd(), md_dir, gsub("\\.Rd", "\\.md", files))
-rd_files <- fs::path_abs(file.path("vendor/paws", "paws", "man", files))
+rd_files <- file.path("vendor/paws", "paws", "man", files)
 
 col_width <- c(
   "<colgroup>",
