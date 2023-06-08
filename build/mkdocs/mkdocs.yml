@@ -35,7 +35,7 @@ plugins:
 extra_css:
   - stylesheets/extra.css
 nav:
-  - Home: README.md
+  - Home: https://dyfanjones.github.io/dev.paws.website/
   - Reference:
       accessanalyzer:
         - Client: https://dyfanjones.github.io/dev.paws.security.identity/accessanalyzer/'
