@@ -1,3 +1,5 @@
+PACKAGE <- "paws.storage"
+
 # basic logger
 log_info <- function(msg) {
   on.exit(flush.console())
@@ -9,85 +11,40 @@ log_info <- function(msg) {
 log_info("Build site assests")
 
 # copy assests from vendor
-fs::file_copy("vendor/paws/README.md", "build/mkdocs/docs", overwrite = TRUE)
 fs::file_copy("vendor/paws/docs/logo.png", "build/mkdocs/docs", overwrite = TRUE)
 
 # create site directory structure
-dirs <- fs::path("build/mkdocs/docs", c("examples", "articles", "img"))
+dirs <- fs::path("build/mkdocs/docs", c("img"))
 if (all(file.exists(dirs))) fs::dir_delete(dirs)
-fs::dir_create(c("build/mkdocs/docs/articles/img", dirs), recurse = TRUE)
 
-# copy assests examples from vendor
-fs::dir_copy("vendor/paws/examples", "build/mkdocs/docs/examples", overwrite = TRUE)
+make_hierarchy <- function(dir = "vendor/paws/cran") {
+  paws_desc <- fs::path(dir, "paws/DESCRIPTION")
+  lines <- readLines(paws_desc)
+  pkgs <- lines[grepl("paws\\.[a-z\\.]", lines, perl = T)]
+  paws_pkg <- trimws(gsub("\\([^)]*\\).*", "", pkgs))
+  
+  hierarchy <- unlist(lapply(paws_pkg, \(pkg) {
+    if (pkg == PACKAGE) {
+      gsub("\\.Rd$", "\\.md", basename(fs::dir_ls(file.path(dir, pkg, "man"))))
+    } else {
+      sprintf(
+        "https://dyfanjones.github.io/dev.%s/%s/",
+        pkg,
+        gsub("\\.Rd$", "", basename(fs::dir_ls(file.path(dir, pkg, "man"))))
+      )
+    }
+  }))
 
-# copy articles from vendor
-for (f in c("credentials.md", "cheat_sheet.pdf")) {
-  fs::file_copy(
-    file.path("vendor/paws/docs", f),
-    file.path("build/mkdocs/docs/articles", f),
-    overwrite = T
-  )
-}
-
-# copy read assests
-for (f in c("code_completion.gif")) {
-  fs::file_copy(
-    file.path("vendor/paws/docs", f),
-    file.path("build/mkdocs/docs/img", f),
-    overwrite = TRUE
-  )
-}
-
-edit_readme <- function(file = "build/mkdocs/docs/README.md") {
-  readme <- readLines(file)
-  # fix logo image
-  idx <- grep('<img src="docs/logo.png" align="right" height="150" />', readme)
-  readme[idx] <- gsub(
-    '<img src="docs/logo.png" align="right" height="150" />',
-    '<img src= "logo.png" style="float:right;height:150px;width:auto" />',
-    readme[idx]
-  )
-
-  # fix docs links
-  idx <- grepl(r"{\[.*\]\(docs/.*\)|\[.*\]\(articles/docs/.*\)}", readme)
-  readme[idx] <- gsub(r"{\[Logo\]\(docs/logo.png\)}", "Logo", readme[idx])
-  readme[idx] <- gsub(
-    r"{!\[\]\(docs/code_completion.gif\)}", r"{!\[\]\(img/code_completion\.gif\)}",
-    readme[idx]
-  )
-  readme[idx] <- gsub("docs/articles|docs", "articles", readme[idx])
-
-  # fix examples links
-  idx <- grepl(r"{\[.*\]\(examples/.*\)}", readme)
-  readme[idx] <- gsub(r"{\.R\)}", r"{\.md\)}", readme[idx])
-
-  writeLines(readme, file)
-}
-
-edit_r_examples <- function(dir = "build/mkdocs/docs/examples") {
-  files <- fs::dir_ls(dir)
-  r_files <- files[grepl("\\.R$", files)]
-
-  for (r_file in r_files) {
-    r_file_edit <- readLines(r_file)
-    r_file_edit <- c("```r", r_file_edit, "```")
-    writeLines(r_file_edit, gsub("R$", "md", r_file))
-  }
-  fs::file_delete(r_files)
-}
-
-# TODO: hyper link the other content
-make_hierarchy <- function(dir = "build/mkdocs/docs/docs") {
-  hierarchy <- list.files(dir)
-
-  lvl <- gsub("_.*|\\.md$", "", hierarchy)
-  ref <- sub("[a-zA-Z0-9]+_", "", hierarchy, perl = T)
+  lvl <- gsub("_.*|\\.md$", "", basename(hierarchy))
+  ref <- sub("[a-zA-Z0-9]+_", "", basename(hierarchy), perl = T)
   ref <- gsub("\\.md$", "", ref)
-
   ref[lvl == ref] <- "Client"
-  hierarchy <- sprintf("%s: docs/%s", ref, hierarchy)
+  
+  idx <- grepl("\\.md$", hierarchy)
+  hierarchy[idx] <- sprintf("%s: docs/%s", ref[idx], hierarchy[idx])
+  hierarchy[!idx] <- sprintf("%s: %s", ref[!idx], hierarchy[!idx])
   hierarchy <- split(hierarchy, lvl)
-
+  
   # order hierarchy
   for (j in seq_along(hierarchy)) {
     idx <- grep("Client", hierarchy[[j]])
@@ -95,6 +52,7 @@ make_hierarchy <- function(dir = "build/mkdocs/docs/docs") {
   }
   return(hierarchy)
 }
+
 
 # TODO: hyper link the other content
 paws_make_hierarchy <- function(paws_dir = "vendor/paws/cran") {
@@ -123,19 +81,6 @@ paws_make_hierarchy <- function(paws_dir = "vendor/paws/cran") {
   return(hierarchy)
 }
 
-
-get_articles <- function(dir = "build/mkdocs/docs/articles") {
-  articles <- sort(basename(fs::dir_ls(dir, type = "file")), decreasing = T)
-  articles <- sprintf("%s: articles/%s", gsub("\\..*$", "", articles), articles)
-  return(as.list(articles))
-}
-
-get_examples <- function(dir = "build/mkdocs/docs/examples") {
-  example <- basename(fs::dir_ls(dir, type = "file"))
-  example <- sprintf("%s: examples/%s", gsub("\\..*$", "", example), example)
-  return(as.list(example))
-}
-
 get_version <- function(dir = "vendor/paws/cran/paws/DESCRIPTION") {
   desc <- readLines(dir)
   version <- desc[grepl("Version:*.[0-9]+\\.[0-9]+\\.[0-9]+", desc)]
@@ -161,14 +106,6 @@ build_site_yaml <- function() {
   ref_idx <- which(vapply(site_yaml$nav, \(x) names(x) == "Reference", FUN.VALUE = logical(1)))
   site_yaml$nav[[ref_idx]]$Reference <- make_hierarchy() # paws_make_hierarchy()
 
-  # add articles
-  ref_idx <- which(vapply(site_yaml$nav, \(x) names(x) == "Articles", FUN.VALUE = logical(1)))
-  site_yaml$nav[[ref_idx]]$Articles <- get_articles()
-
-  # add examples
-  ref_idx <- which(vapply(site_yaml$nav, \(x) names(x) == "Examples", FUN.VALUE = logical(1)))
-  site_yaml$nav[[ref_idx]]$Examples <- get_examples()
-
   site_yaml <- yaml::as.yaml(site_yaml, indent.mapping.sequence = T)
   site_yaml <- gsub("- '", "- ", site_yaml)
 
@@ -183,6 +120,4 @@ build_site_yaml <- function() {
   writeLines(site_yaml, "build/mkdocs/mkdocs.yml", "")
 }
 
-edit_readme()
-edit_r_examples()
 build_site_yaml()

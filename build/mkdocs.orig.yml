@@ -32,12 +32,12 @@ markdown_extensions:
   - pymdownx.superfences
 repo_url: https://github.com/paws-r/paws
 repo_name: paws-r
-# plugins:
-#   - search
+plugins:
+  - search
 extra_css:
   - stylesheets/extra.css
 nav:
-  - Home: README.md
+  - Home: https://dyfanjones.github.io/dev.paws.website/
   - Reference:
-  - Articles:
-  - Examples:
+  - Articles: https://dyfanjones.github.io/dev.paws.website/articles/credentials/
+  - Examples: https://dyfanjones.github.io/dev.paws.website/examples/batch/
