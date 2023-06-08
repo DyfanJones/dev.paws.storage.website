@@ -23,8 +23,8 @@ log_info <- function(msg) {
 
 build_long_rd <- function(long_doc = "vendor/paws/paws") {
   suppressMessages({
-    roxygen2::update_collate(long_doc)
-    roxygen2::roxygenize(long_doc, roclets = c("rd"))
+    roxygen2::update_collate(fs::path_abs(long_doc))
+    roxygen2::roxygenize(fs::path_abs(long_doc), roclets = c("rd"))
   })
 }
 
